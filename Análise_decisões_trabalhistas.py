@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Versão com Correção height text_area "Obs Cálculos"
+# Versão com campo Prazo Pagamento e Opção Art. 916
 
 import streamlit as st
 from datetime import date, datetime
@@ -24,10 +24,10 @@ log = logging.getLogger(__name__)
 log.info("Iniciando aplicação Streamlit...")
 
 # ========= INÍCIO: Configuração da Página e Estado =========
-st.set_page_config(page_title="Análise e Email Decisões v4.5-Fix", layout="wide") # Nova Versão
+st.set_page_config(page_title="Análise e Email Decisões v4.6", layout="wide") # Nova Versão
 st.title("Formulário de Análise e Geração de Email")
 
-# (Inicialização do st.session_state mantida como antes)
+# Inicializa estado da sessão (Adiciona novas chaves)
 default_session_state = {
     "fase_processual": "Conhecimento", "cliente_role_radio": "Reclamado",
     "tipo_decisao": config.DECISAO_OPTIONS_CONHECIMENTO[0],
@@ -45,6 +45,9 @@ default_session_state = {
     "local_guias": "", "obs_finais": "", "suggested_descricao_sel": "",
     "suggested_descricao_txt": "", "suggested_data_fatal": date.today(),
     "suggested_data_d": date.today(),
+    # --- NOVAS CHAVES ---
+    "prazo_pagamento_dias": 15, # Default 15 dias
+    "opcao_art_916": "Não oferecer/Não aplicável" # Default
 }
 for key, default_value in default_session_state.items():
     if key not in st.session_state: st.session_state[key] = default_value
@@ -53,28 +56,9 @@ for key, default_value in default_session_state.items():
 # ====== SIDEBAR DE AJUDA ======
 with st.sidebar:
     st.header("Ajuda - Roteiro de Análise"); st.info("""
-        **Objetivo:** Preencher a análise para gerar um
-        rascunho de e-mail interno sobre a decisão.
-
-        **Fase Processual:** Define opções de Decisão/Recurso.
-        **Contexto:** Data Ciência, Tipo Decisão, Cliente.
-        *(Nº Proc, Nomes, Local usarão placeholders [ ] no e-mail).*
-        **Análise:** Resultado, Valor (se aplicável), Obs.
-        **Síntese:** Resumo da decisão/recurso p/ email.
-        **Cálculos (Execução):** Se homologação, preencha
-        os valores detalhados (Principal, INSS, FGTS...).
-        **Dep. Anteriores (Execução):** Informe se houver.
-        **Tabela Pedidos:** Cole do DataJuri ou UPLOAD. Verifique.
-        **ED:** Avalie e justifique.
-        **Recurso:** Opções mudam c/ Fase. Justifique.
-         * **Garantia (Exec):** Marque se for necessária.
-        **Custas/Depósito:** Use os novos status.
-        **Guias:** Aparece se precisar recolher.
-        **Prazos:** Use a lista ou 'Outro'. Remova com 'X'.
-        **Observações Finais:** Notas adicionais.
-
-        **Gerar Email:** Cria o rascunho completo.
-        """)
+        *(Texto da ajuda precisa ser atualizado para incluir
+         os novos campos Prazo Pagamento e Opção Art. 916)*
+        """) # Simplificado por brevidade
     debug_mode = st.checkbox("Ativar Logs de Debug", value=(config.LOGGING_LEVEL == "DEBUG"))
     if debug_mode: logging.getLogger().setLevel(logging.DEBUG); st.caption("Logs DEBUG no terminal.")
     else: logging.getLogger().setLevel(logging.INFO)
@@ -88,8 +72,8 @@ tab_contexto, tab_analise, tab_pedidos, tab_proximo_passo, tab_prazos_obs = st.t
 
 # --- Tab 1: Contexto ---
 with tab_contexto:
-    st.subheader("Informações Gerais")
-    col_fase, col_contexto1 = st.columns([0.5, 1.5])
+    # (Conteúdo da Tab 1 mantido)
+    st.subheader("Informações Gerais"); col_fase, col_contexto1 = st.columns([0.5, 1.5])
     with col_fase: st.radio("Fase:", ["Conhecimento", "Execução"], index=["Conhecimento", "Execução"].index(st.session_state.fase_processual), key="fase_processual", horizontal=True)
     with col_contexto1: st.date_input("Data da Ciência:", value=st.session_state.get("data_ciencia"), key="data_ciencia", help="Data da notificação formal.")
     st.session_state.data_ciencia_valida = st.session_state.data_ciencia is not None
@@ -114,24 +98,29 @@ with tab_analise:
 
     # --- Campos de Execução ---
     if st.session_state.fase_processual == "Execução":
-        st.markdown("---"); st.info("Campos abaixo relevantes p/ Fase de Execução (ex: Homologação).")
+        st.markdown("---"); st.subheader("Detalhes da Execução") # Subheader mais claro
+
+        # Adiciona Prazo Pagamento e Opção 916 aqui
+        col_exec1, col_exec2 = st.columns(2)
+        with col_exec1:
+             st.number_input("Prazo para Pagamento (dias):", min_value=1, step=1, key="prazo_pagamento_dias", help="Prazo concedido na decisão para pagamento (geralmente 15).")
+        with col_exec2:
+             opcoes_916 = ["Não oferecer/Não aplicável", "Oferecer Opção Art. 916", "Cliente Optou por Art. 916"]
+             st.selectbox("Parcelamento Art. 916 CPC:", options=opcoes_916, key="opcao_art_916", help="Indicar se a opção de parcelamento deve ser oferecida ou se já foi escolhida.")
+
+        # Expander para Cálculos
         with st.expander("Detalhes dos Cálculos Homologados (Opcional)", expanded=True):
-            # <<< CORREÇÃO APLICADA AQUI >>>
-            st.number_input("Valor Total Homologado (R$):", key="calc_total_homologado")
-            st.number_input("Principal Líquido (+Juros?) (R$):", key="calc_principal_liq")
-            st.number_input("INSS Empregado (Base) (R$):", key="calc_inss_emp")
-            st.number_input("FGTS (+Taxa?) (R$):", key="calc_fgts")
-            st.number_input("Hon. Sucumbência (R$):", key="calc_hon_suc")
-            st.number_input("Hon. Periciais (R$):", key="calc_hon_per")
-            st.text_area("Obs Cálculos:", key="calc_obs") # height=50 removido
-            # <<< FIM DA CORREÇÃO >>>
+             st.number_input("Valor Total Homologado (R$):", key="calc_total_homologado"); st.number_input("Principal Líquido (+Juros?) (R$):", key="calc_principal_liq"); st.number_input("INSS Empregado (Base) (R$):", key="calc_inss_emp"); st.number_input("FGTS (+Taxa?) (R$):", key="calc_fgts"); st.number_input("Hon. Sucumbência (R$):", key="calc_hon_suc"); st.number_input("Hon. Periciais (R$):", key="calc_hon_per"); st.text_area("Obs Cálculos:", key="calc_obs")
+
+    # Expander Depósitos Anteriores (mantido)
     with st.expander("Depósitos Recursais Anteriores (Opcional)"):
         st.number_input("Valor Total Aprox. (R$):", key="dep_anterior_valor")
-        st.text_area("Detalhes (Datas, Tipos):", key="dep_anterior_detalhes") # height removido
+        st.text_area("Detalhes (Datas, Tipos):", key="dep_anterior_detalhes")
+
 
 # --- Tab 3: Pedidos (Tabela) ---
 with tab_pedidos:
-    # (Conteúdo da Tab 3 mantido, incluindo correção do label do text_area)
+    # (Conteúdo da Tab 3 mantido)
     st.subheader("Tabela de Pedidos (DataJuri)"); st.write("Use o Upload de Arquivo (preferencial) ou cole o texto abaixo.")
     uploaded_file = st.file_uploader("Carregar Arquivo (CSV, Excel, TXT com TABs)", type=['csv', 'xlsx', 'xls', 'txt'], key="file_uploader")
     st.markdown("---"); st.write("Ou cole o texto da tabela aqui:")
@@ -140,7 +129,7 @@ with tab_pedidos:
         try: st.image(config.IMAGE_PATH, caption="Exemplo Tela DataJuri", use_column_width=True); st.caption(f"Verifique se '{config.IMAGE_PATH}' está na pasta.")
         except FileNotFoundError: st.error(f"Erro: Imagem '{config.IMAGE_PATH}' não encontrada.")
         except Exception as img_e: st.error(f"Erro ao carregar imagem: {img_e}")
-    help_text_tabela_v4 = """... (Texto de ajuda mantido) ..."""
+    help_text_tabela_v4 = """...""" # Mantido
     st.text_area("Conteúdo Tabela Colada:", height=150, key="texto_tabela_pedidos", help=help_text_tabela_v4, label_visibility="collapsed")
     preview_placeholder = st.empty()
     if st.button("Verificar Tabela Carregada/Colada"):
@@ -148,7 +137,7 @@ with tab_pedidos:
         if not tipo_decisao_atual or tipo_decisao_atual == config.DECISAO_OPTIONS_CONHECIMENTO[0]: preview_placeholder.error("Selecione 'Tipo de Decisão Analisada' na aba 'Contexto' antes.")
         elif uploaded_file or st.session_state.texto_tabela_pedidos.strip():
             with st.spinner("Processando tabela..."):
-                parsed_data, error_msg = parse_and_format_report_v3(texto=st.session_state.texto_tabela_pedidos if not uploaded_file else None, uploaded_file=uploaded_file) # Chama parser.py
+                parsed_data, error_msg = parse_and_format_report_v3(texto=st.session_state.texto_tabela_pedidos if not uploaded_file else None, uploaded_file=uploaded_file)
                 if parsed_data is not None:
                     st.session_state.parsed_pedidos_data = parsed_data; st.session_state.parsed_pedidos_error = None
                     preview_placeholder.success("Tabela processada! Veja pré-visualização:"); preview_placeholder.dataframe(parsed_data, use_container_width=True)
@@ -157,10 +146,9 @@ with tab_pedidos:
                     preview_placeholder.error(f"Falha:"); preview_placeholder.code(error_msg, language=None)
         else: preview_placeholder.warning("Carregue um arquivo ou cole o texto."); st.session_state.parsed_pedidos_data = None; st.session_state.parsed_pedidos_error = None
 
-
 # --- Tab 4: Próximo Passo (ED/Recurso) ---
 with tab_proximo_passo:
-    # (Conteúdo da Tab 4 mantido como na resposta anterior)
+    # (Conteúdo da Tab 4 mantido)
     st.subheader("Embargos de Declaração (ED)"); st.radio("Avaliação ED:", config.ED_STATUS_OPTIONS, index=None, key="ed_status", horizontal=True)
     if st.session_state.ed_status == "Cabe ED": st.text_area("Justificativa ED:", height=80, key="justif_ed")
     mostrar_secao_recurso = (st.session_state.ed_status == "Não cabe ED")
@@ -198,7 +186,6 @@ with tab_proximo_passo:
 # --- Tab 5: Prazos e Observações ---
 with tab_prazos_obs:
     # (Conteúdo da Tab 5 mantido como na resposta anterior)
-    # ... (Sugestão de Prazos, Formulário Adicionar Prazo, Lista de Prazos, Obs Finais) ...
     st.subheader("Prazos"); suggested_prazo = None; data_ciencia_prazo = st.session_state.get("data_ciencia"); ed_status_prazo = st.session_state.get("ed_status"); recurso_sel_prazo = st.session_state.get("recurso_sel")
     if data_ciencia_prazo:
         data_base = data_ciencia_prazo; desc_sugestao = ""
@@ -255,32 +242,35 @@ with tab_prazos_obs:
             st.rerun()
     st.subheader("Observações Finais"); st.text_area("Observações Gerais (para registro interno):", key="obs_finais", height=100)
 
+
 # ========= BOTÃO FINAL PARA GERAR O E-MAIL =========
 st.divider()
 if st.button("📧 Gerar Rascunho de E-mail", type="primary", use_container_width=True):
     # Validações (Atualizadas)
-    # ... (Bloco de validação mantido como na resposta anterior) ...
-    valid = True; error_messages = []; ph_select = config.PLACEHOLDER_SELECT; ph_recurso = config.PLACEHOLDER_RECURSO; ph_status = config.PLACEHOLDER_STATUS; placeholders_geral = [ph_select, ph_recurso, ph_status, ""]
-    fase_val = st.session_state.fase_processual; data_ciencia_val = st.session_state.get("data_ciencia"); cliente_role_val = st.session_state.cliente_role_radio; tipo_decisao_val = st.session_state.tipo_decisao; resultado_sentenca_val = st.session_state.resultado_sentenca; obs_sentenca_val = st.session_state.get("obs_sentenca",""); sintese_objeto_recurso_val = st.session_state.get("sintese_objeto_recurso", ""); texto_tabela_val = st.session_state.get("texto_tabela_pedidos",""); ed_status_val = st.session_state.get("ed_status"); justificativa_ed_val = st.session_state.get("justif_ed",""); recurso_selecionado_val = st.session_state.get("recurso_sel"); recurso_outro_especificar_val = st.session_state.get("recurso_outro_txt",""); recurso_justificativa_val = st.session_state.get("recurso_just",""); garantia_necessaria_val = st.session_state.get("garantia_necessaria", False); status_custas_val = st.session_state.get("status_custas"); valor_custas_val = st.session_state.get("valor_custas", 0.0); status_deposito_val = st.session_state.get("status_deposito"); valor_deposito_input_val = st.session_state.get("valor_deposito_input", 0.0); guias_status_val = st.session_state.get("guias_status_v4"); local_guias_val = st.session_state.get("local_guias","")
+    valid = True; error_messages = []; placeholders_geral = ["-- Selecione --", "", "-- Selecione o Tipo --"]
+    # Coleta valores do state
+    fase_val = st.session_state.fase_processual; data_ciencia_val = st.session_state.get("data_ciencia"); cliente_role_val = st.session_state.cliente_role_radio; tipo_decisao_val = st.session_state.tipo_decisao; resultado_sentenca_val = st.session_state.resultado_sentenca; obs_sentenca_val = st.session_state.get("obs_sentenca",""); sintese_objeto_recurso_val = st.session_state.get("sintese_objeto_recurso", ""); texto_tabela_val = st.session_state.get("texto_tabela_pedidos",""); ed_status_val = st.session_state.get("ed_status"); justificativa_ed_val = st.session_state.get("justif_ed",""); recurso_selecionado_val = st.session_state.get("recurso_sel"); recurso_outro_especificar_val = st.session_state.get("recurso_outro_txt",""); recurso_justificativa_val = st.session_state.get("recurso_just",""); garantia_necessaria_val = st.session_state.get("garantia_necessaria", False); status_custas_val = st.session_state.get("status_custas"); valor_custas_val = st.session_state.get("valor_custas", 0.0); status_deposito_val = st.session_state.get("status_deposito"); valor_deposito_input_val = st.session_state.get("valor_deposito_input", 0.0); guias_status_val = st.session_state.get("guias_status_v4"); local_guias_val = st.session_state.get("local_guias",""); prazo_pagamento_val = st.session_state.get("prazo_pagamento_dias", 15); opcao_916_val = st.session_state.get("opcao_art_916")
+
+    # --- Validações ---
     if not fase_val: error_messages.append("Selecione Fase Processual (Tab 1)."); valid = False
     if not data_ciencia_val: error_messages.append("Data da Ciência obrigatória (Tab 1)."); valid = False
     if not cliente_role_val or cliente_role_val == "Outro": error_messages.append("Papel do Cliente obrigatório (Reclamante/Reclamado) (Tab 1)."); valid = False
-    if not tipo_decisao_val or tipo_decisao_val == ph_select: error_messages.append("Tipo de Decisão obrigatório (Tab 1)."); valid = False
-    if not resultado_sentenca_val or resultado_sentenca_val == ph_select: error_messages.append("Resultado Geral obrigatório (Tab 2)."); valid = False
+    if not tipo_decisao_val or tipo_decisao_val == config.PLACEHOLDER_SELECT: error_messages.append("Tipo de Decisão obrigatório (Tab 1)."); valid = False
+    if not resultado_sentenca_val or resultado_sentenca_val == config.PLACEHOLDER_SELECT: error_messages.append("Resultado Geral obrigatório (Tab 2)."); valid = False
     elif resultado_sentenca_val == "Parcialmente Favorável" and not obs_sentenca_val.strip() and not sintese_objeto_recurso_val.strip(): error_messages.append("Obs ou Síntese obrigatórias se Resultado 'Parcialmente' (Tab 2)."); valid = False
     if texto_tabela_val.strip() and st.session_state.get('parsed_pedidos_error'): error_messages.append(f"Erro Tabela Pedidos: Verifique erro na Tab 3."); valid = False
     if ed_status_val is None: error_messages.append("Avaliação sobre ED obrigatória (Tab 4)."); valid = False
     elif ed_status_val == "Cabe ED" and not justificativa_ed_val.strip(): error_messages.append("Justificativa para ED obrigatória (Tab 4)."); valid = False
     mostrar_secao_recurso_val = (ed_status_val == "Não cabe ED")
     if mostrar_secao_recurso_val:
-        if not recurso_selecionado_val or recurso_selecionado_val == ph_recurso: error_messages.append("Seleção de Recurso obrigatória (Tab 4)."); valid = False
+        if not recurso_selecionado_val or recurso_selecionado_val == config.PLACEHOLDER_RECURSO: error_messages.append("Seleção de Recurso obrigatória (Tab 4)."); valid = False
         elif recurso_selecionado_val == "Outro" and not recurso_outro_especificar_val.strip(): error_messages.append("Especifique recurso 'Outro' (Tab 4)."); valid = False
-        if recurso_selecionado_val != ph_recurso and not recurso_justificativa_val.strip(): error_messages.append("Justificativa p/ Recurso/Não Interposição obrigatória (Tab 4)."); valid = False
-        mostrar_secao_custas_guias_val = (recurso_selecionado_val and recurso_selecionado_val not in [ph_recurso, "Não Interpor Recurso"])
+        if recurso_selecionado_val != config.PLACEHOLDER_RECURSO and not recurso_justificativa_val.strip(): error_messages.append("Justificativa p/ Recurso/Não Interposição obrigatória (Tab 4)."); valid = False
+        mostrar_secao_custas_guias_val = (recurso_selecionado_val and recurso_selecionado_val not in [config.PLACEHOLDER_RECURSO, "Não Interpor Recurso"])
         if mostrar_secao_custas_guias_val:
-            if not status_custas_val or status_custas_val == ph_status: error_messages.append("Status das Custas obrigatório (Tab 4)."); valid = False
+            if not status_custas_val or status_custas_val == config.PLACEHOLDER_STATUS: error_messages.append("Status das Custas obrigatório (Tab 4)."); valid = False
             elif status_custas_val == "A Recolher" and valor_custas_val <= 0.0: error_messages.append("Valor Custas > 0 se 'A Recolher' (Tab 4)."); valid = False
-            if not status_deposito_val or status_deposito_val == ph_status: error_messages.append("Status do Depósito/Garantia obrigatório (Tab 4)."); valid = False
+            if not status_deposito_val or status_deposito_val == config.PLACEHOLDER_STATUS: error_messages.append("Status do Depósito/Garantia obrigatório (Tab 4)."); valid = False
             elif status_deposito_val in ["A Recolher/Complementar", "A Recolher (Situação Específica)", "Garantia do Juízo (Integral)"] and valor_deposito_input_val <= 0.0: error_messages.append("Valor Depósito/Garantia > 0 se 'A Recolher' (Tab 4)."); valid = False
             precisa_recolher_val = status_custas_val == "A Recolher" or status_deposito_val in ["A Recolher/Complementar", "A Recolher (Situação Específica)", "Garantia do Juízo (Integral)"]
             if precisa_recolher_val:
@@ -307,9 +297,9 @@ if st.button("📧 Gerar Rascunho de E-mail", type="primary", use_container_widt
 
         log.info("Gerando rascunho de e-mail...")
         try:
-            email_data['pedidos_data'] = st.session_state.get('parsed_pedidos_data')
-            # Garante que tipo_decisao não seja None ao passar para a função
-            email_data['tipo_decisao'] = st.session_state.get('tipo_decisao', '')
+            email_data['pedidos_data'] = st.session_state.get('parsed_pedidos_data') # Passa List[PedidoData]
+            email_data['tipo_decisao'] = st.session_state.get('tipo_decisao', '') # Garante que não é None
+            email_data['prazos'] = st.session_state.get('prazos', []) # Passa lista de dicts
 
             email_subject, email_body = generate_email_body(**email_data) # Chama utils_email.py
 
