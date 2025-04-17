@@ -1,4 +1,5 @@
 streamlit
 holidays
-pandas       # Nova dependência para ler arquivos
-openpyxl     # Necessário para ler arquivos .xlsx com pandas
+pandas
+openpyxl
+python-dateutil
