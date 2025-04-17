@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Versão com Correção Texto Ajuda Sidebar
+# Versão com Correção height text_area "Obs Cálculos"
 
 import streamlit as st
 from datetime import date, datetime
@@ -14,6 +14,7 @@ try:
 except ImportError as e:
     st.error(f"Erro ao importar módulos. Certifique-se que os arquivos config.py, utils_date.py, parser.py, utils_email.py estão na mesma pasta. Detalhe: {e}")
     st.stop()
+
 
 # Configuração do Logging
 log_level = getattr(logging, config.LOGGING_LEVEL.upper(), logging.INFO)
@@ -49,12 +50,9 @@ for key, default_value in default_session_state.items():
     if key not in st.session_state: st.session_state[key] = default_value
 # ========= FIM: Configuração da Página e Estado =========
 
-# ====== SIDEBAR DE AJUDA (Texto Restaurado) ======
+# ====== SIDEBAR DE AJUDA ======
 with st.sidebar:
-    st.header("Ajuda - Roteiro de Análise")
-    # <<< CORREÇÃO AQUI: Texto de ajuda restaurado >>>
-    st.info(
-        """
+    st.header("Ajuda - Roteiro de Análise"); st.info("""
         **Objetivo:** Preencher a análise para gerar um
         rascunho de e-mail interno sobre a decisão.
 
@@ -76,17 +74,13 @@ with st.sidebar:
         **Observações Finais:** Notas adicionais.
 
         **Gerar Email:** Cria o rascunho completo.
-        """
-    )
-    # <<< FIM DA CORREÇÃO >>>
+        """)
     debug_mode = st.checkbox("Ativar Logs de Debug", value=(config.LOGGING_LEVEL == "DEBUG"))
     if debug_mode: logging.getLogger().setLevel(logging.DEBUG); st.caption("Logs DEBUG no terminal.")
     else: logging.getLogger().setLevel(logging.INFO)
 
 
 # ========= Layout Principal com Tabs =========
-# (O restante do código de Análise_decisões_trabalhistas.py permanece
-#  exatamente igual à resposta anterior, começando daqui)
 st.header("Análise da Decisão Trabalhista")
 tab_contexto, tab_analise, tab_pedidos, tab_proximo_passo, tab_prazos_obs = st.tabs([
     "1. Contexto", "2. Análise Decisão", "3. Pedidos (Tabela)", "4. Próximo Passo", "5. Prazos e Obs."
@@ -117,17 +111,28 @@ with tab_analise:
             st.number_input(label_valor, min_value=0.0, step=0.01, format="%.2f", key="valor_condenacao_execucao")
     st.text_area("Observações sobre a Decisão:", key="obs_sentenca", help="Detalhe nuances.")
     st.text_area("Síntese Decisão / Objeto Recurso (p/ Email):", height=100, key="sintese_objeto_recurso", help="Resumo conciso para corpo do e-mail.")
+
+    # --- Campos de Execução ---
     if st.session_state.fase_processual == "Execução":
+        st.markdown("---"); st.info("Campos abaixo relevantes p/ Fase de Execução (ex: Homologação).")
         with st.expander("Detalhes dos Cálculos Homologados (Opcional)", expanded=True):
-            st.number_input("Valor Total Homologado (R$):", key="calc_total_homologado"); st.number_input("Principal Líquido (+Juros?) (R$):", key="calc_principal_liq"); st.number_input("INSS Empregado (Base) (R$):", key="calc_inss_emp"); st.number_input("FGTS (+Taxa?) (R$):", key="calc_fgts"); st.number_input("Hon. Sucumbência (R$):", key="calc_hon_suc"); st.number_input("Hon. Periciais (R$):", key="calc_hon_per"); st.text_area("Obs Cálculos:", key="calc_obs", height=50)
+            # <<< CORREÇÃO APLICADA AQUI >>>
+            st.number_input("Valor Total Homologado (R$):", key="calc_total_homologado")
+            st.number_input("Principal Líquido (+Juros?) (R$):", key="calc_principal_liq")
+            st.number_input("INSS Empregado (Base) (R$):", key="calc_inss_emp")
+            st.number_input("FGTS (+Taxa?) (R$):", key="calc_fgts")
+            st.number_input("Hon. Sucumbência (R$):", key="calc_hon_suc")
+            st.number_input("Hon. Periciais (R$):", key="calc_hon_per")
+            st.text_area("Obs Cálculos:", key="calc_obs") # height=50 removido
+            # <<< FIM DA CORREÇÃO >>>
     with st.expander("Depósitos Recursais Anteriores (Opcional)"):
         st.number_input("Valor Total Aprox. (R$):", key="dep_anterior_valor")
         st.text_area("Detalhes (Datas, Tipos):", key="dep_anterior_detalhes") # height removido
 
 # --- Tab 3: Pedidos (Tabela) ---
 with tab_pedidos:
-    st.subheader("Tabela de Pedidos (DataJuri)")
-    st.write("Use o Upload de Arquivo (preferencial) ou cole o texto abaixo.")
+    # (Conteúdo da Tab 3 mantido, incluindo correção do label do text_area)
+    st.subheader("Tabela de Pedidos (DataJuri)"); st.write("Use o Upload de Arquivo (preferencial) ou cole o texto abaixo.")
     uploaded_file = st.file_uploader("Carregar Arquivo (CSV, Excel, TXT com TABs)", type=['csv', 'xlsx', 'xls', 'txt'], key="file_uploader")
     st.markdown("---"); st.write("Ou cole o texto da tabela aqui:")
     if st.button("Mostrar/Ocultar Imagem Exemplo", key="toggle_image_btn"): st.session_state.show_image_example = not st.session_state.show_image_example
@@ -136,7 +141,7 @@ with tab_pedidos:
         except FileNotFoundError: st.error(f"Erro: Imagem '{config.IMAGE_PATH}' não encontrada.")
         except Exception as img_e: st.error(f"Erro ao carregar imagem: {img_e}")
     help_text_tabela_v4 = """... (Texto de ajuda mantido) ..."""
-    st.text_area("Conteúdo Tabela Colada:", height=150, key="texto_tabela_pedidos", help=help_text_tabela_v4, label_visibility="collapsed") # Label adicionado
+    st.text_area("Conteúdo Tabela Colada:", height=150, key="texto_tabela_pedidos", help=help_text_tabela_v4, label_visibility="collapsed")
     preview_placeholder = st.empty()
     if st.button("Verificar Tabela Carregada/Colada"):
         tipo_decisao_atual = st.session_state.tipo_decisao
@@ -152,15 +157,14 @@ with tab_pedidos:
                     preview_placeholder.error(f"Falha:"); preview_placeholder.code(error_msg, language=None)
         else: preview_placeholder.warning("Carregue um arquivo ou cole o texto."); st.session_state.parsed_pedidos_data = None; st.session_state.parsed_pedidos_error = None
 
+
 # --- Tab 4: Próximo Passo (ED/Recurso) ---
 with tab_proximo_passo:
-    st.subheader("Embargos de Declaração (ED)")
-    st.radio("Avaliação ED:", config.ED_STATUS_OPTIONS, index=None, key="ed_status", horizontal=True)
+    # (Conteúdo da Tab 4 mantido como na resposta anterior)
+    st.subheader("Embargos de Declaração (ED)"); st.radio("Avaliação ED:", config.ED_STATUS_OPTIONS, index=None, key="ed_status", horizontal=True)
     if st.session_state.ed_status == "Cabe ED": st.text_area("Justificativa ED:", height=80, key="justif_ed")
     mostrar_secao_recurso = (st.session_state.ed_status == "Não cabe ED")
     if mostrar_secao_recurso:
-        # (Restante do código da Tab 4 mantido igual à resposta anterior)
-        # ... (Seleção de recurso, Justificativa, Garantia, Custas, Depósito, Guias) ...
         st.subheader("Recurso Cabível")
         current_lista_recursos = config.RECURSO_OPTIONS_EXECUCAO if st.session_state.fase_processual == "Execução" else config.RECURSO_OPTIONS_CONHECIMENTO
         current_mapa_recurso = config.MAPA_DECISAO_RECURSO_EXECUCAO if st.session_state.fase_processual == "Execução" else config.MAPA_DECISAO_RECURSO_CONHECIMENTO
@@ -187,10 +191,9 @@ with tab_proximo_passo:
                 current_deposito_default_idx = config.DEPOSITO_DEFAULT_INDEX_EXEC if st.session_state.fase_processual == "Execução" else 0
                 status_deposito = st.selectbox("Status Depósito/Garantia:", options=current_deposito_options, index=current_deposito_default_idx, key="status_deposito")
                 if status_deposito in ["A Recolher/Complementar", "A Recolher (Situação Específica)", "Garantia do Juízo (Integral)"]: st.number_input("Valor Depósito/Garantia (R$):", min_value=0.01, format="%.2f", key="valor_deposito_input")
-            precisa_recolher_agora = status_custas == "A Recolher" or status_deposito in ["A Recolher/Complementar", "A Recolher (Situação Específica)", "Garantia do Juízo (Integral)"]
+            precisa_recolher_agora = st.session_state.status_custas == "A Recolher" or st.session_state.status_deposito in ["A Recolher/Complementar", "A Recolher (Situação Específica)", "Garantia do Juízo (Integral)"]
             if precisa_recolher_agora:
                 st.subheader("Guias de Pagamento"); st.radio("Status Guias:", options=config.GUIAS_OPTIONS, index=None, key="guias_status_v4"); st.text_input("Local/Obs Guias:", key="local_guias", help="Link, pasta ou obs.")
-
 
 # --- Tab 5: Prazos e Observações ---
 with tab_prazos_obs:
@@ -252,18 +255,16 @@ with tab_prazos_obs:
             st.rerun()
     st.subheader("Observações Finais"); st.text_area("Observações Gerais (para registro interno):", key="obs_finais", height=100)
 
-
 # ========= BOTÃO FINAL PARA GERAR O E-MAIL =========
 st.divider()
 if st.button("📧 Gerar Rascunho de E-mail", type="primary", use_container_width=True):
     # Validações (Atualizadas)
+    # ... (Bloco de validação mantido como na resposta anterior) ...
     valid = True; error_messages = []; ph_select = config.PLACEHOLDER_SELECT; ph_recurso = config.PLACEHOLDER_RECURSO; ph_status = config.PLACEHOLDER_STATUS; placeholders_geral = [ph_select, ph_recurso, ph_status, ""]
-    # Coleta valores do state para validação
     fase_val = st.session_state.fase_processual; data_ciencia_val = st.session_state.get("data_ciencia"); cliente_role_val = st.session_state.cliente_role_radio; tipo_decisao_val = st.session_state.tipo_decisao; resultado_sentenca_val = st.session_state.resultado_sentenca; obs_sentenca_val = st.session_state.get("obs_sentenca",""); sintese_objeto_recurso_val = st.session_state.get("sintese_objeto_recurso", ""); texto_tabela_val = st.session_state.get("texto_tabela_pedidos",""); ed_status_val = st.session_state.get("ed_status"); justificativa_ed_val = st.session_state.get("justif_ed",""); recurso_selecionado_val = st.session_state.get("recurso_sel"); recurso_outro_especificar_val = st.session_state.get("recurso_outro_txt",""); recurso_justificativa_val = st.session_state.get("recurso_just",""); garantia_necessaria_val = st.session_state.get("garantia_necessaria", False); status_custas_val = st.session_state.get("status_custas"); valor_custas_val = st.session_state.get("valor_custas", 0.0); status_deposito_val = st.session_state.get("status_deposito"); valor_deposito_input_val = st.session_state.get("valor_deposito_input", 0.0); guias_status_val = st.session_state.get("guias_status_v4"); local_guias_val = st.session_state.get("local_guias","")
-
     if not fase_val: error_messages.append("Selecione Fase Processual (Tab 1)."); valid = False
     if not data_ciencia_val: error_messages.append("Data da Ciência obrigatória (Tab 1)."); valid = False
-    if not cliente_role_val or cliente_role_val == "Outro": error_messages.append("Papel do Cliente obrigatório (Reclamante/Reclamado) (Tab 1)."); valid = False # Ajustado
+    if not cliente_role_val or cliente_role_val == "Outro": error_messages.append("Papel do Cliente obrigatório (Reclamante/Reclamado) (Tab 1)."); valid = False
     if not tipo_decisao_val or tipo_decisao_val == ph_select: error_messages.append("Tipo de Decisão obrigatório (Tab 1)."); valid = False
     if not resultado_sentenca_val or resultado_sentenca_val == ph_select: error_messages.append("Resultado Geral obrigatório (Tab 2)."); valid = False
     elif resultado_sentenca_val == "Parcialmente Favorável" and not obs_sentenca_val.strip() and not sintese_objeto_recurso_val.strip(): error_messages.append("Obs ou Síntese obrigatórias se Resultado 'Parcialmente' (Tab 2)."); valid = False
@@ -302,12 +303,16 @@ if st.button("📧 Gerar Rascunho de E-mail", type="primary", use_container_widt
         email_data['justificativa_ed'] = st.session_state.get('justif_ed','')
         email_data['obs_finais'] = st.session_state.get('obs_finais','')
         email_data['guias_status'] = st.session_state.get('guias_status_v4')
+        email_data['cliente_role'] = st.session_state.cliente_role_radio # Usa a chave correta
 
         log.info("Gerando rascunho de e-mail...")
         try:
-            # Passa a lista de PedidoData diretamente do state
             email_data['pedidos_data'] = st.session_state.get('parsed_pedidos_data')
-            email_subject, email_body = generate_email_body(**email_data)
+            # Garante que tipo_decisao não seja None ao passar para a função
+            email_data['tipo_decisao'] = st.session_state.get('tipo_decisao', '')
+
+            email_subject, email_body = generate_email_body(**email_data) # Chama utils_email.py
+
             st.subheader("Rascunho do E-mail Gerado")
             st.text_input("Assunto:", value=email_subject, key="email_subj_final")
             st.text_area("Corpo do E-mail:", value=email_body, height=600, key="email_body_final")
