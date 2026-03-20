@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.database import Base, engine
-from app.routers import auth, analises, ai, dashboard
+from app.routers import auth, analises, ai, dashboard, processo
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 
@@ -96,6 +96,7 @@ app.include_router(auth.router)
 app.include_router(analises.router)
 app.include_router(ai.router)
 app.include_router(dashboard.router)
+app.include_router(processo.router)
 
 
 @app.get("/api/health")

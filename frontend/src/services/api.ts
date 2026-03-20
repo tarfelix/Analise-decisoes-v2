@@ -149,6 +149,54 @@ export const ai = {
   listPrompts: () => request<Record<string, string[]>>('/ai/prompts'),
 }
 
+// Processo (DataJuri + PDF + Zion)
+export const processo = {
+  buscar: (q: string) => request<Record<string, unknown>>(`/processo/buscar?q=${encodeURIComponent(q)}`),
+
+  partes: (processoId: string) =>
+    request<{ partes: Array<Record<string, unknown>> }>(`/processo/partes/${processoId}`),
+
+  extractBookmarks: async (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = getToken()
+    const res = await fetch(`${API_BASE}/processo/pdf/bookmarks`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.detail || 'Erro na extração')
+    }
+    return res.json()
+  },
+
+  extractPieceText: async (file: File, startPage: number, endPage: number) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const token = getToken()
+    const res = await fetch(
+      `${API_BASE}/processo/pdf/extract-piece?start_page=${startPage}&end_page=${endPage}`,
+      {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      },
+    )
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.detail || 'Erro na extração')
+    }
+    return res.json()
+  },
+
+  atividades: (tipo?: string) =>
+    request<{ atividades: Array<Record<string, unknown>>; count: number }>(
+      `/processo/atividades${tipo ? `?tipo=${encodeURIComponent(tipo)}` : ''}`,
+    ),
+}
+
 // Dashboard
 export const dashboard = {
   stats: (days = 30) =>
