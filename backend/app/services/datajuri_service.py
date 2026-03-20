@@ -54,12 +54,12 @@ def _authenticate() -> bool:
             },
             timeout=30,
         )
-        logger.info("DataJuri auth response: status=%d", resp.status_code)
+        print(f"[DATAJURI] Auth response: status={resp.status_code}")
         resp.raise_for_status()
         data = resp.json()
         _token = data["access_token"]
         _token_expiry = time.time() + 2400  # 40 min
-        logger.info("DataJuri auth OK — token acquired")
+        print(f"[DATAJURI] Auth OK — token acquired")
         return True
     except Exception as e:
         logger.error("DataJuri auth failed: %s", e)
@@ -79,11 +79,11 @@ def _get(path: str, params: dict | None = None) -> dict | None:
     """Make authenticated GET request to DataJuri API."""
     token = _ensure_token()
     if not token:
-        logger.error("DataJuri: no token available (auth failed)")
+        print("[DATAJURI] ERROR: no token available (auth failed)")
         return None
 
     url = f"{settings.datajuri_base_url}{path}"
-    logger.info("DataJuri GET %s params=%s", url, params)
+    print(f"[DATAJURI] GET {url} params={params}")
 
     try:
         resp = requests.get(
@@ -92,7 +92,7 @@ def _get(path: str, params: dict | None = None) -> dict | None:
             params=params,
             timeout=30,
         )
-        logger.info("DataJuri response: status=%d, body_preview=%s", resp.status_code, resp.text[:500])
+        print(f"[DATAJURI] Response: status={resp.status_code}, body={resp.text[:500]}")
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
@@ -126,7 +126,7 @@ def buscar_processo_por_pasta(pasta: str) -> dict | None:
 
         if data and isinstance(data, dict) and data.get("rows"):
             rows = data["rows"]
-            logger.info("Processo pasta '%s' encontrado (%d resultado(s))", pasta, len(rows))
+            print(f"[DATAJURI] Processo pasta '{pasta}' encontrado ({len(rows)} resultado(s))")
             return rows[0]
 
     logger.warning("Processo pasta '%s' não encontrado no DataJuri", pasta)
