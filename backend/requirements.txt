@@ -1,0 +1,39 @@
+# Web framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic[email]>=2.0.0
+pydantic-settings>=2.0.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+alembic>=1.13.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+
+# LLM providers
+openai>=1.0.0
+anthropic>=0.39.0
+google-genai>=1.0.0
+tiktoken>=0.5.0
+
+# PDF processing
+PyMuPDF>=1.23.0
+
+# Data processing
+pandas>=2.0.0
+openpyxl>=3.1.0
+python-dateutil>=2.8.0
+holidays>=0.40
+
+# SharePoint / Office365
+office365-rest-python-client>=2.5.0
+
+# MySQL (Zion)
+mysql-connector-python>=8.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+python-multipart>=0.0.6

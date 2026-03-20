@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* AI field indicators */
+.ai-suggestion {
+  @apply border-2 border-ai-suggestion bg-yellow-50 transition-colors;
+}
+
+.ai-confirmed {
+  @apply border-2 border-ai-confirmed bg-green-50 transition-colors;
+}
+
+/* Wizard step animations */
+.wizard-step-enter {
+  @apply opacity-0 translate-x-4;
+}
+.wizard-step-enter-active {
+  @apply opacity-100 translate-x-0 transition-all duration-300;
+}

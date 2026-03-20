@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    expose:
+      - "8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRE_HOURS=${JWT_EXPIRE_HOURS:-24}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@soarespicon.adv.br}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - DATAJURI_BASE_URL=${DATAJURI_BASE_URL}
+      - DATAJURI_CLIENT_ID=${DATAJURI_CLIENT_ID}
+      - DATAJURI_SECRET_ID=${DATAJURI_SECRET_ID}
+      - DATAJURI_USERNAME=${DATAJURI_USERNAME}
+      - DATAJURI_PASSWORD=${DATAJURI_PASSWORD}
+      - ZION_DB_HOST=${ZION_DB_HOST}
+      - ZION_DB_USER=${ZION_DB_USER}
+      - ZION_DB_PASSWORD=${ZION_DB_PASSWORD}
+      - ZION_DB_DATABASE=${ZION_DB_DATABASE}
+      - ZION_DB_PORT=${ZION_DB_PORT:-3306}
+      - SHAREPOINT_CLIENT_ID=${SHAREPOINT_CLIENT_ID}
+      - SHAREPOINT_CLIENT_SECRET=${SHAREPOINT_CLIENT_SECRET}
+      - SHAREPOINT_SITE_ROOT=${SHAREPOINT_SITE_ROOT}
+      - DOSSIE_ENABLED=${DOSSIE_ENABLED:-true}
+      - DOSSIE_DB_URL=${DOSSIE_DB_URL}
+      - DEBUG=${DEBUG:-false}
+    networks:
+      - coolify
+      - default
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  coolify:
+    external: true
+  default:
