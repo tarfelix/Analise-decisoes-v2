@@ -33,6 +33,9 @@ services:
       - DOSSIE_ENABLED=${DOSSIE_ENABLED:-true}
       - DOSSIE_DB_URL=${DOSSIE_DB_URL}
       - DEBUG=${DEBUG:-false}
+    networks:
+      - coolify
+      - default
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -49,4 +52,12 @@ services:
       - "80"
     depends_on:
       - backend
+    networks:
+      - coolify
+      - default
     restart: unless-stopped
+
+networks:
+  coolify:
+    external: true
+  default:
