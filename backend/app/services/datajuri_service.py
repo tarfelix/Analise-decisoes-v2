@@ -2,6 +2,7 @@
 
 Provides case lookup by pasta (folder number) or CNJ.
 Uses the same API contract as the sp-zion-automacao client.
+All data endpoints use the /v1 prefix.
 """
 
 import base64
@@ -37,15 +38,17 @@ def _authenticate() -> bool:
     global _token, _token_expiry
 
     if not settings.datajuri_base_url or not settings.datajuri_client_id:
-        logger.warning("DataJuri not configured — skipping auth")
+        print("[DATAJURI] Not configured — skipping auth")
         return False
 
     credentials = f"{settings.datajuri_client_id}:{settings.datajuri_secret_id}"
     b64 = base64.b64encode(credentials.encode()).decode()
 
     try:
+        auth_url = f"{settings.datajuri_base_url}/oauth/token"
+        print(f"[DATAJURI] Authenticating at {auth_url}")
         resp = requests.post(
-            f"{settings.datajuri_base_url}/oauth/token",
+            auth_url,
             headers={"Authorization": f"Basic {b64}", "Content-Type": "application/x-www-form-urlencoded"},
             data={
                 "grant_type": "password",
@@ -59,10 +62,10 @@ def _authenticate() -> bool:
         data = resp.json()
         _token = data["access_token"]
         _token_expiry = time.time() + 2400  # 40 min
-        print(f"[DATAJURI] Auth OK — token acquired")
+        print("[DATAJURI] Auth OK — token acquired")
         return True
     except Exception as e:
-        logger.error("DataJuri auth failed: %s", e)
+        print(f"[DATAJURI] Auth FAILED: {e}")
         return False
 
 
@@ -79,7 +82,7 @@ def _get(path: str, params: dict | None = None) -> dict | None:
     """Make authenticated GET request to DataJuri API."""
     token = _ensure_token()
     if not token:
-        print("[DATAJURI] ERROR: no token available (auth failed)")
+        print("[DATAJURI] ERROR: no token (auth failed)")
         return None
 
     url = f"{settings.datajuri_base_url}{path}"
@@ -92,24 +95,23 @@ def _get(path: str, params: dict | None = None) -> dict | None:
             params=params,
             timeout=30,
         )
-        print(f"[DATAJURI] Response: status={resp.status_code}, body={resp.text[:500]}")
+        body_preview = resp.text[:300] if resp.text else "(empty)"
+        print(f"[DATAJURI] Response: status={resp.status_code}, body={body_preview}")
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        logger.error("DataJuri GET %s failed: %s", path, e)
+        print(f"[DATAJURI] GET {path} FAILED: {e}")
         return None
 
 
 def buscar_processo_por_pasta(pasta: str) -> dict | None:
     """Search for a case by folder number using DataJuri criterio syntax.
 
-    Uses the same approach as sp-zion-automacao: /entidades/Processo with criterio param.
+    Uses /v1/entidades/Processo with criterio param (same as sp-zion-automacao).
     Pasta format: '414.280 (T)', '657 (C)', etc.
     """
-    # Strategy 1: exact match
-    # Strategy 2: contains (without suffix)
     pasta_sem_sufixo = re.sub(r"\s*\([TCE]\)\s*$", "", pasta, flags=re.IGNORECASE).strip()
 
     strategies = [
@@ -118,7 +120,8 @@ def buscar_processo_por_pasta(pasta: str) -> dict | None:
     ]
 
     for criterio in strategies:
-        data = _get("/entidades/Processo", params={
+        print(f"[DATAJURI] Trying criterio: '{criterio}'")
+        data = _get("/v1/entidades/Processo", params={
             "campos": CAMPOS_PROCESSO,
             "pageSize": 5,
             "criterio": criterio,
@@ -126,21 +129,21 @@ def buscar_processo_por_pasta(pasta: str) -> dict | None:
 
         if data and isinstance(data, dict) and data.get("rows"):
             rows = data["rows"]
-            print(f"[DATAJURI] Processo pasta '{pasta}' encontrado ({len(rows)} resultado(s))")
+            print(f"[DATAJURI] Found! pasta='{pasta}' ({len(rows)} results)")
             return rows[0]
 
-    logger.warning("Processo pasta '%s' não encontrado no DataJuri", pasta)
+    print(f"[DATAJURI] Pasta '{pasta}' not found")
     return None
 
 
 def buscar_processo_por_cnj(cnj: str) -> dict | None:
     """Search for a case by CNJ number."""
-    return _get(f"/processo/resumoProcesso/{cnj}", {"numeroDias": 30})
+    return _get(f"/v1/processo/resumoProcesso/{cnj}", {"numeroDias": 30})
 
 
 def buscar_partes(processo_id: str) -> list[dict]:
     """Get parties for a case by DataJuri process ID."""
-    data = _get(f"/entidades/Processo/{processo_id}/partes")
+    data = _get(f"/v1/entidades/Processo/{processo_id}/partes")
     if isinstance(data, list):
         return data
     return []
@@ -171,7 +174,7 @@ def buscar_processo(pasta_ou_cnj: str) -> dict | None:
             result["_area_detectada"] = area
         return result
 
-    # Try CNJ (if it looks like one: contains dashes and dots in CNJ pattern)
+    # Try CNJ (if it looks like one)
     if re.match(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", raw):
         result = buscar_processo_por_cnj(raw)
         if result and area:
