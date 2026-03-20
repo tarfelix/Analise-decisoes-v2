@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: analise
+      POSTGRES_PASSWORD: analise
+      POSTGRES_DB: analise_decisoes
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://analise:analise@db:5432/analise_decisoes
+      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+      JWT_SECRET: dev-secret-change-in-production
+      ADMIN_EMAIL: admin@soarespicon.adv.br
+      ADMIN_PASSWORD: Mudar@123
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  pgdata:
