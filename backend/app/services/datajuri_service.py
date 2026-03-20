@@ -54,10 +54,12 @@ def _authenticate() -> bool:
             },
             timeout=30,
         )
+        logger.info("DataJuri auth response: status=%d", resp.status_code)
         resp.raise_for_status()
         data = resp.json()
         _token = data["access_token"]
         _token_expiry = time.time() + 2400  # 40 min
+        logger.info("DataJuri auth OK — token acquired")
         return True
     except Exception as e:
         logger.error("DataJuri auth failed: %s", e)
@@ -77,15 +79,20 @@ def _get(path: str, params: dict | None = None) -> dict | None:
     """Make authenticated GET request to DataJuri API."""
     token = _ensure_token()
     if not token:
+        logger.error("DataJuri: no token available (auth failed)")
         return None
+
+    url = f"{settings.datajuri_base_url}{path}"
+    logger.info("DataJuri GET %s params=%s", url, params)
 
     try:
         resp = requests.get(
-            f"{settings.datajuri_base_url}{path}",
+            url,
             headers={"Authorization": f"Bearer {token}"},
             params=params,
             timeout=30,
         )
+        logger.info("DataJuri response: status=%d, body_preview=%s", resp.status_code, resp.text[:500])
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
