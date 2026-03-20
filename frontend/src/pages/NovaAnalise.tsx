@@ -330,17 +330,19 @@ function StepProcessoPDF({
         )}
         {processoData && (
           <div className="mt-3 bg-green-50 border border-green-200 rounded-lg p-4">
-            <div className="flex items-center gap-2 text-green-800 mb-2">
+            <div className="flex items-center gap-2 text-green-800 mb-3">
               <Check className="h-5 w-5" />
-              <span className="font-medium">Processo encontrado</span>
+              <span className="font-medium">Processo encontrado no DataJuri</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm text-gray-700">
-              {Object.entries(processoData).slice(0, 8).map(([key, val]) => (
-                <div key={key}>
-                  <span className="text-gray-400">{key}:</span>{' '}
-                  <span className="font-medium">{String(val || '—')}</span>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <InfoField label="Pasta" value={processoData['pasta']} />
+              <InfoField label="Nº Processo (CNJ)" value={processoData['faseAtual.numeroProcesso'] || processoData['numeroProcesso']} />
+              <InfoField label="Cliente" value={processoData['cliente.nome']} highlight />
+              <InfoField label="Adverso" value={processoData['adverso.nome']} highlight />
+              <InfoField label="Vara/Turma" value={processoData['faseAtual.vara']} />
+              <InfoField label="Foro" value={processoData['faseAtual.forum']} />
+              <InfoField label="Localidade" value={processoData['faseAtual.localidade']} />
+              <InfoField label="UF" value={processoData['faseAtual.estado']} />
             </div>
           </div>
         )}
@@ -480,6 +482,16 @@ function StepProcessoPDF({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+function InfoField({ label, value, highlight }: { label: string; value: unknown; highlight?: boolean }) {
+  const display = value ? String(value) : '—'
+  return (
+    <div>
+      <span className="text-gray-400 text-xs">{label}</span>
+      <div className={`font-medium ${highlight ? 'text-primary-700' : 'text-gray-800'}`}>{display}</div>
     </div>
   )
 }

@@ -38,17 +38,15 @@ def _authenticate() -> bool:
     global _token, _token_expiry
 
     if not settings.datajuri_base_url or not settings.datajuri_client_id:
-        print("[DATAJURI] Not configured — skipping auth")
+        logger.warning("DataJuri not configured — skipping auth")
         return False
 
     credentials = f"{settings.datajuri_client_id}:{settings.datajuri_secret_id}"
     b64 = base64.b64encode(credentials.encode()).decode()
 
     try:
-        auth_url = f"{settings.datajuri_base_url}/oauth/token"
-        print(f"[DATAJURI] Authenticating at {auth_url}")
         resp = requests.post(
-            auth_url,
+            f"{settings.datajuri_base_url}/oauth/token",
             headers={"Authorization": f"Basic {b64}", "Content-Type": "application/x-www-form-urlencoded"},
             data={
                 "grant_type": "password",
@@ -57,15 +55,13 @@ def _authenticate() -> bool:
             },
             timeout=30,
         )
-        print(f"[DATAJURI] Auth response: status={resp.status_code}")
         resp.raise_for_status()
         data = resp.json()
         _token = data["access_token"]
         _token_expiry = time.time() + 2400  # 40 min
-        print("[DATAJURI] Auth OK — token acquired")
         return True
     except Exception as e:
-        print(f"[DATAJURI] Auth FAILED: {e}")
+        logger.warning("DataJuri auth failed: %s", e)
         return False
 
 
@@ -82,27 +78,21 @@ def _get(path: str, params: dict | None = None) -> dict | None:
     """Make authenticated GET request to DataJuri API."""
     token = _ensure_token()
     if not token:
-        print("[DATAJURI] ERROR: no token (auth failed)")
         return None
-
-    url = f"{settings.datajuri_base_url}{path}"
-    print(f"[DATAJURI] GET {url} params={params}")
 
     try:
         resp = requests.get(
-            url,
+            f"{settings.datajuri_base_url}{path}",
             headers={"Authorization": f"Bearer {token}"},
             params=params,
             timeout=30,
         )
-        body_preview = resp.text[:300] if resp.text else "(empty)"
-        print(f"[DATAJURI] Response: status={resp.status_code}, body={body_preview}")
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        print(f"[DATAJURI] GET {path} FAILED: {e}")
+        logger.warning("DataJuri GET %s failed: %s", path, e)
         return None
 
 
@@ -120,7 +110,6 @@ def buscar_processo_por_pasta(pasta: str) -> dict | None:
     ]
 
     for criterio in strategies:
-        print(f"[DATAJURI] Trying criterio: '{criterio}'")
         data = _get("/v1/entidades/Processo", params={
             "campos": CAMPOS_PROCESSO,
             "pageSize": 5,
@@ -128,11 +117,9 @@ def buscar_processo_por_pasta(pasta: str) -> dict | None:
         })
 
         if data and isinstance(data, dict) and data.get("rows"):
-            rows = data["rows"]
-            print(f"[DATAJURI] Found! pasta='{pasta}' ({len(rows)} results)")
-            return rows[0]
+            return data["rows"][0]
 
-    print(f"[DATAJURI] Pasta '{pasta}' not found")
+    logger.warning("Processo pasta '%s' não encontrado no DataJuri", pasta)
     return None
 
 
