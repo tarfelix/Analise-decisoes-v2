@@ -1,4 +1,15 @@
-FROM python:3.12-slim AS backend
+# Stage 1: Build frontend
+FROM node:20-alpine AS frontend-builder
+WORKDIR /app
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+COPY frontend/ .
+ARG VITE_API_URL=/api
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
+
+# Stage 2: Backend + serve frontend static files
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -8,11 +19,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Application code
-COPY . .
+# Backend code
+COPY backend/ .
+
+# Frontend built files
+COPY --from=frontend-builder /app/dist /app/static
 
 # Timezone
 ENV TZ=America/Sao_Paulo

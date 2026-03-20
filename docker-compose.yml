@@ -1,6 +1,8 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     expose:
       - "8000"
     environment:
@@ -42,20 +44,6 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-  frontend:
-    build:
-      context: ./frontend
-      args:
-        VITE_API_URL: /api
-    expose:
-      - "80"
-    depends_on:
-      - backend
-    networks:
-      - coolify
-      - default
-    restart: unless-stopped
 
 networks:
   coolify:
