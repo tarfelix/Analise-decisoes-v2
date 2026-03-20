@@ -1,10 +1,12 @@
-"""DataJuri REST API client — simplified from sp-zion-automacao/datajuri_client.py.
+"""DataJuri REST API client — based on sp-zion-automacao/datajuri_client.py.
 
 Provides case lookup by pasta (folder number) or CNJ.
+Uses the same API contract as the sp-zion-automacao client.
 """
 
 import base64
 import logging
+import re
 import time
 
 import requests
@@ -16,6 +18,18 @@ settings = get_settings()
 
 _token: str | None = None
 _token_expiry: float = 0
+
+# Fields to request from DataJuri process entity
+CAMPOS_PROCESSO = (
+    "id,pasta,numeroProcesso,adverso.nome,cliente.nome,"
+    "faseAtual.vara,faseAtual.numeroVara,faseAtual.localidade,"
+    "faseAtual.forum,faseAtual.estado,faseAtual.numeroProcesso,"
+    "faseProcesso.tipoFase,faseProcesso.vara,faseProcesso.numeroVara,"
+    "faseProcesso.forum,faseProcesso.localidade,faseProcesso.numeroProcesso,"
+    "proprietario.nome,responsavel,"
+    "listaPartesProcessoStr,listaFasesProcesso,"
+    "pasta__sharepoint"
+)
 
 
 def _authenticate() -> bool:
@@ -82,22 +96,39 @@ def _get(path: str, params: dict | None = None) -> dict | None:
 
 
 def buscar_processo_por_pasta(pasta: str) -> dict | None:
-    """Search for a case by folder number (pasta).
+    """Search for a case by folder number using DataJuri criterio syntax.
 
-    Returns dict with case data including: numero_processo, partes, vara, etc.
+    Uses the same approach as sp-zion-automacao: /entidades/Processo with criterio param.
+    Pasta format: '414.280 (T)', '657 (C)', etc.
     """
-    data = _get("/entidades/Processo", params={"pasta": pasta, "limit": 1})
-    if data and isinstance(data, list) and len(data) > 0:
-        return data[0]
-    if data and isinstance(data, dict) and "items" in data:
-        items = data["items"]
-        return items[0] if items else None
-    return data
+    # Strategy 1: exact match
+    # Strategy 2: contains (without suffix)
+    pasta_sem_sufixo = re.sub(r"\s*\([TCE]\)\s*$", "", pasta, flags=re.IGNORECASE).strip()
+
+    strategies = [
+        f"pasta | igual a | {pasta}",
+        f"pasta | contém | {pasta_sem_sufixo}",
+    ]
+
+    for criterio in strategies:
+        data = _get("/entidades/Processo", params={
+            "campos": CAMPOS_PROCESSO,
+            "pageSize": 5,
+            "criterio": criterio,
+        })
+
+        if data and isinstance(data, dict) and data.get("rows"):
+            rows = data["rows"]
+            logger.info("Processo pasta '%s' encontrado (%d resultado(s))", pasta, len(rows))
+            return rows[0]
+
+    logger.warning("Processo pasta '%s' não encontrado no DataJuri", pasta)
+    return None
 
 
 def buscar_processo_por_cnj(cnj: str) -> dict | None:
     """Search for a case by CNJ number."""
-    return _get(f"/processo/resumoProcesso/{cnj}")
+    return _get(f"/processo/resumoProcesso/{cnj}", {"numeroDias": 30})
 
 
 def buscar_partes(processo_id: str) -> list[dict]:
@@ -108,14 +139,36 @@ def buscar_partes(processo_id: str) -> list[dict]:
     return []
 
 
-def buscar_processo(pasta_ou_cnj: str) -> dict | None:
-    """Smart search: try pasta first, then CNJ."""
-    # If it looks like a pasta (numeric, short), search by pasta
-    clean = pasta_ou_cnj.strip().replace(".", "").replace("-", "")
-    if clean.isdigit() and len(clean) <= 10:
-        result = buscar_processo_por_pasta(pasta_ou_cnj.strip())
-        if result:
-            return result
+def _detectar_area(pasta: str) -> str:
+    """Detect area from pasta suffix: (T)=trabalhista, (C)=civel."""
+    match = re.search(r"\(([TCE])\)\s*$", pasta, re.IGNORECASE)
+    if match:
+        return {"T": "trabalhista", "C": "civel", "E": "empresarial"}.get(
+            match.group(1).upper(), ""
+        )
+    return ""
 
-    # Otherwise try CNJ
-    return buscar_processo_por_cnj(pasta_ou_cnj.strip())
+
+def buscar_processo(pasta_ou_cnj: str) -> dict | None:
+    """Smart search: try pasta first, then CNJ.
+
+    DataJuri pastas include area suffix, e.g., '414.280 (T)'.
+    """
+    raw = pasta_ou_cnj.strip()
+    area = _detectar_area(raw)
+
+    # Try pasta search (exact + fallback)
+    result = buscar_processo_por_pasta(raw)
+    if result:
+        if area:
+            result["_area_detectada"] = area
+        return result
+
+    # Try CNJ (if it looks like one: contains dashes and dots in CNJ pattern)
+    if re.match(r"\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}", raw):
+        result = buscar_processo_por_cnj(raw)
+        if result and area:
+            result["_area_detectada"] = area
+        return result
+
+    return None

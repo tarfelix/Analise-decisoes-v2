@@ -279,6 +279,13 @@ function StepProcessoPDF({
                   const p = String(at.pasta || '')
                   if (p) {
                     onPastaChange(p)
+                    // Auto-detect area from suffix: (T)=trabalhista, (C)=civel
+                    const match = p.match(/\(([TCE])\)\s*$/i)
+                    if (match) {
+                      const areaMap: Record<string, string> = { T: 'trabalhista', C: 'civel', E: 'empresarial' }
+                      const detected = areaMap[match[1].toUpperCase()]
+                      if (detected) onAreaChange(detected)
+                    }
                   }
                 }}
                 className="w-full text-left px-4 py-2 hover:bg-blue-50 border-b border-gray-100 last:border-0 text-sm flex justify-between"
