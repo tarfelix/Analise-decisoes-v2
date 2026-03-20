@@ -336,7 +336,7 @@ function StepProcessoPDF({
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <InfoField label="Pasta" value={processoData['pasta']} />
-              <InfoField label="Nº Processo (CNJ)" value={processoData['faseAtual.numeroProcesso'] || processoData['numeroProcesso']} />
+              <InfoField label="Nº Processo (CNJ)" value={processoData['numero_cnj'] || processoData['faseAtual.numero'] || processoData['faseAtual.numeroProcesso'] || processoData['numeroProcesso']} />
               <InfoField label="Cliente" value={processoData['cliente.nome']} highlight />
               <InfoField label="Adverso" value={processoData['adverso.nome']} highlight />
               <InfoField label="Vara/Turma" value={processoData['faseAtual.vara']} />
@@ -344,6 +344,39 @@ function StepProcessoPDF({
               <InfoField label="Localidade" value={processoData['faseAtual.localidade']} />
               <InfoField label="UF" value={processoData['faseAtual.estado']} />
             </div>
+            {/* SharePoint link */}
+            {processoData['sharepoint_link'] ? (
+              <div className="mt-3 pt-3 border-t border-green-200">
+                <a
+                  href={String(processoData['sharepoint_link'])}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  {'Abrir pasta no SharePoint'}
+                </a>
+                {processoData['numero_cnj'] ? (
+                  <span className="ml-3 text-xs text-gray-500">
+                    {'Procure o PDF com nome: ' + String(processoData['numero_cnj']).replace(/\./g, '-')}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {/* Processo digital link */}
+            {processoData['processo_digital_link'] ? (
+              <div className={processoData['sharepoint_link'] ? 'mt-1' : 'mt-3 pt-3 border-t border-green-200'}>
+                <a
+                  href={String(processoData['processo_digital_link'])}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                >
+                  <FileText className="h-4 w-4" />
+                  {'Abrir processo digital (PJe)'}
+                </a>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

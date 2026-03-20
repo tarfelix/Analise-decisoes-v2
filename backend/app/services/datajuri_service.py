@@ -23,13 +23,15 @@ _token_expiry: float = 0
 # Fields to request from DataJuri process entity
 CAMPOS_PROCESSO = (
     "id,pasta,numeroProcesso,adverso.nome,cliente.nome,"
-    "faseAtual.vara,faseAtual.numeroVara,faseAtual.localidade,"
+    "faseAtual.numero,faseAtual.vara,faseAtual.numeroVara,faseAtual.localidade,"
     "faseAtual.forum,faseAtual.estado,faseAtual.numeroProcesso,"
     "faseProcesso.tipoFase,faseProcesso.vara,faseProcesso.numeroVara,"
     "faseProcesso.forum,faseProcesso.localidade,faseProcesso.numeroProcesso,"
     "proprietario.nome,responsavel,"
     "listaPartesProcessoStr,listaFasesProcesso,"
-    "pasta__sharepoint"
+    "valorCampoPersonalizado(pasta__sharepoint),"
+    "valorCampoPersonalizado(processo_digital),"
+    "natureza,tipoAcao,assunto,observacao,status"
 )
 
 
@@ -117,10 +119,49 @@ def buscar_processo_por_pasta(pasta: str) -> dict | None:
         })
 
         if data and isinstance(data, dict) and data.get("rows"):
-            return data["rows"][0]
+            row = data["rows"][0]
+            print(f"[DATAJURI DEBUG] Raw keys: {list(row.keys())}")
+            print(f"[DATAJURI DEBUG] Raw row: {row}")
+            return _normalize_processo(row)
 
     logger.warning("Processo pasta '%s' não encontrado no DataJuri", pasta)
     return None
+
+
+def _normalize_processo(row: dict) -> dict:
+    """Normalize DataJuri response to ensure consistent field names.
+
+    DataJuri may return custom fields with long keys like
+    'valorCampoPersonalizado(pasta__sharepoint)'. Normalize them to shorter keys.
+    Also ensure CNJ number is available under a consistent key.
+    """
+    result = dict(row)
+
+    # Normalize SharePoint link — try multiple possible key names
+    for key in list(result.keys()):
+        if "pasta__sharepoint" in key.lower():
+            result["sharepoint_link"] = result[key]
+            break
+    # Also try just the shorthand
+    if "sharepoint_link" not in result and "pasta__sharepoint" in result:
+        result["sharepoint_link"] = result["pasta__sharepoint"]
+
+    # Normalize processo digital link
+    for key in list(result.keys()):
+        if "processo_digital" in key.lower():
+            result["processo_digital_link"] = result[key]
+            break
+
+    # Ensure CNJ number is available — try multiple fields
+    cnj = (
+        result.get("faseAtual.numero")
+        or result.get("faseAtual.numeroProcesso")
+        or result.get("numeroProcesso")
+    )
+    if cnj:
+        result["numero_cnj"] = cnj
+
+    return result
 
 
 def buscar_processo_por_cnj(cnj: str) -> dict | None:
