@@ -14,12 +14,37 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
+def _ensure_database_exists():
+    """Auto-create the database if it doesn't exist (for shared PostgreSQL)."""
+    from sqlalchemy import create_engine, text
+
+    db_url = settings.database_url
+    if "/analise_decisoes" not in db_url:
+        return
+
+    # Connect to default 'postgres' database to create our database
+    base_url = db_url.rsplit("/", 1)[0] + "/postgres"
+    try:
+        tmp_engine = create_engine(base_url, isolation_level="AUTOCOMMIT")
+        with tmp_engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = 'analise_decisoes'")
+            )
+            if not result.fetchone():
+                conn.execute(text("CREATE DATABASE analise_decisoes"))
+                logger.info("Database 'analise_decisoes' created successfully")
+        tmp_engine.dispose()
+    except Exception as e:
+        logger.warning("Could not auto-create database (may already exist): %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create tables and seed admin user on startup."""
+    """Create database, tables, and seed admin user on startup."""
     from app.models import Usuario  # noqa: F401 — ensure all models are imported
     from app.routers.auth import hash_password
 
+    _ensure_database_exists()
     Base.metadata.create_all(bind=engine)
 
     # Seed admin user if not exists
